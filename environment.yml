@@ -1,0 +1,17 @@
+name: EEL6935-FinalProject
+
+channels:
+  - conda-forge
+  - pytorch
+  - pypi
+
+dependencies:
+  - python = 3.10.8
+  - scikit-learn
+  - torchvision
+  - matplotlib
+  - autopep8
+  - pytorch
+  - opencv
+  - numpy
+  - tqdm
