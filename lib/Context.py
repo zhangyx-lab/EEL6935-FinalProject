@@ -1,9 +1,10 @@
 from sys import argv
 from datetime import datetime
 from os.path import exists
-from util.env import RUN_PATH, VAR_PATH, ensureDir
+from util.env import RUN_PATH, VAR_PATH, ensure
 from shutil import rmtree
 from math import floor, ceil
+from lib.Signal import Signal
 
 
 def getRunID(start_i: int = 0):
@@ -17,16 +18,17 @@ def getRunID(start_i: int = 0):
             i += 1
 
 
-RUN_LOG_PATH = VAR_PATH / "run.log"
+RUN_LOG_PATH = RUN_PATH / "log.txt"
 RUN_LOG_PATH.touch(exist_ok=True)
 
 
 class Context:
     def __init__(self, id, path, parent=None):
-        ensureDir(path)
+        ensure(path)
         self.id = id
         self.path = path
         self.parent = parent
+        self.signal = Signal(self)
 
     def __enter__(self):
         return self
@@ -57,9 +59,9 @@ class Context:
             # Duplex to stdout
             print(f"{self.id} |", *args)
 
-    def interrupt(self):
+    def interrupt(self, code: int = -1):
         if self.parent is not None:
-            self.parent.interrupt()
+            self.parent.interrupt(code)
 
 
 class Run(Context):
@@ -72,15 +74,14 @@ class Run(Context):
         self.log(banner=f"RUN ID: {id}")
 
     def context(self, context_name="train"):
-        self.state = Context(self.id, self.path / context_name, self)
-        return self.state
+        return Context(self.id, self.path / context_name, self)
 
-    def interrupt(self):
-        self.state = "INT"
+    def interrupt(self, code: int = -1):
+        self.state = code
         rmtree(self.path)
 
     def __exit__(self, errType, err, traceback):
-        if self.state != "INT" and errType is None:
+        if self.state is None and errType is None:
             now = datetime.now().strftime("%Y%m%d %H:%M:%S")
             self.log(now, file="000_SUCCESS")
 

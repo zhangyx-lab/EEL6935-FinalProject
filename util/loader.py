@@ -24,9 +24,9 @@ def get_osf_url(hash): return f"https://osf.io/{hash}/download"
 for name, hash in [KAY_LABELS, KAY_LABELS_VAL, KAY_IMAGES]:
     path = str(DATA_PATH / name)
     if not os.path.isfile(path):
+        print(f"Downloading {name}...")
         r = requests.get(get_osf_url(hash))
         assert r.status_code == requests.codes.ok, r.status_code
-        print(f"Downloading {name}...")
         with open(path, "wb") as f:
             f.write(r.content)
         print(f"Download {name} completed!")

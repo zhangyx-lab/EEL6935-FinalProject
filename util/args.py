@@ -39,7 +39,7 @@ parser.add_argument(
 
 parser.add_argument(
     '-r', '--learning-rate',
-    type=float, default=1e-6,
+    type=float, default=1e-2,
     help="Learning rate"
 )
 

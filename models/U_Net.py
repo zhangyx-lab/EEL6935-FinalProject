@@ -12,7 +12,7 @@ from lib.Module import Module
 from dataset import Sample_t
 from util.env import DEVICE
 import util.args as args
-from util.run import Context
+from lib.Context import Context
 # ---------------------------------------------------------
 from .Decoder import Decoder
 from .Encoder import Encoder
@@ -29,21 +29,20 @@ from enum import Enum
 #         self.sv = mode & self.SPI_ALONE
 #         self.vv = mode & self.VIS_JOINT
 #         self.ss = mode & self.SPI_JOINT
-# Train either [encoder] OR [decoder] alone
 VIS_ALONE = 0b0001  # visual -> [encoder] -> spike
 SPI_ALONE = 0b0010  # spike -> [decoder] -> visual
-ALL_ALONE = VIS_ALONE | SPI_ALONE
-# Train [encoder->decoder] OR [decoder->encoder] jointly
 VIS_JOINT = 0b0100  # visual -> [encoder => decoder] -> visual
 SPI_JOINT = 0b1000  # spike -> [decoder => encoder] -> spike
+ALL_ALONE = VIS_ALONE | SPI_ALONE
 ALL_JOINT = VIS_JOINT | SPI_JOINT
-# The monster
 ALL_MODES = ALL_ALONE | ALL_JOINT
 # ---------------------------------------------------------
 SCALE = 3
-FC_LAYERS = 10
+FC_LAYERS = 4
 visual_loss = nn.MSELoss().to(DEVICE)
 spike_loss = nn.MSELoss().to(DEVICE)
+optim_visual = None
+optim_spike = None
 
 
 class Model(Module):
@@ -69,11 +68,16 @@ class Model(Module):
         assert visual.shape == out.shape, f"{visual.shape} != {out.shape}"
         del out
         # ============== Optimizer ==============
-        self.optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=args.learning_rate,
-            weight_decay=5e-4
-        )
+        global optim_visual, optim_spike
+        optim_visual, optim_spike = [
+            torch.optim.Adam(
+                self.parameters(),
+                lr=args.learning_rate,
+                weight_decay=5e-4
+            ) for _ in range(2)
+        ]
+        # Not used
+        self.optimizer = torch.optim.Adam(self.parameters())
 
     def forward(self, *args):
         raise NotImplementedError
@@ -83,13 +87,13 @@ class Model(Module):
         # Send both visual and spike date to device
         visual = visual.to(self.device)
         spike = spike.to(self.device)
-        # Prediction getters
+        # Dictionary that saves all detached losses
         LOSS: dict[torch.Tensor] = {}
         PRED = {
-            "vs": lambda: (self.encoder(visual), spike_loss, spike),
-            "sv": lambda: (self.decoder(spike), visual_loss, visual),
-            "vv": lambda: (self.decoder(get("vs")[0]), visual_loss, visual),
-            "ss": lambda: (self.encoder(get("sv")[0]), spike_loss, spike),
+            "V-S": lambda: (self.encoder(visual), spike_loss, spike),
+            "S-V": lambda: (self.decoder(spike), visual_loss, visual),
+            "V-V": lambda: (self.decoder(get("V-S")[0]), visual_loss, visual),
+            "S-S": lambda: (self.encoder(get("S-V")[0]), spike_loss, spike),
         }
 
         def get(k):
@@ -98,61 +102,75 @@ class Model(Module):
                 PRED[k] = PRED[k]()
             return PRED[k]
 
-        def getLoss(k):
+        def getLoss(k, detach=False) -> tuple[torch.Tensor, torch.Tensor]:
             nonlocal LOSS
-            pred, loss, target = get(k)
-            print("loss", k, pred.shape, target.shape)
-            LOSS[k] = loss(pred, target)
-            return pred, LOSS[k]
+            pred, lossFn, target = get(k)
+            # print("loss", k, pred.shape, target.shape)
+            loss: torch.Tensor = lossFn(pred, target)
+            LOSS[k] = loss.detach().cpu().numpy()
+            if detach:
+                del loss
+                return pred, LOSS[k]
+            else:
+                return pred, loss
         # Test mode saves all types of predictions to context
         if not TRAIN_MODE:
+            ID = f"{int(idx):04d}"
+
+            def save(suffix: str, tensor: torch.Tensor):
+                np.save(ctx.path / f"{ID}_{suffix}",
+                        tensor.detach().cpu().numpy())
             with torch.no_grad():
                 # visual -> spike
-                vs, vs_loss = getLoss("vs")
-                # spike -> visual
-                sv, sv_loss = getLoss("sv")
+                _, vs_loss = getLoss("V-S", True)
+                save("V-S", _)
                 # visual -> visual
-                vv, vv_loss = getLoss("vv")
+                _, vv_loss = getLoss("V-V", True)
+                save("V-V", _)
+                del _
+                # spike -> visual
+                _, sv_loss = getLoss("S-V", True)
+                save("S-V", _)
                 # spike -> spike
-                ss, ss_loss = getLoss("ss")
-            # Save all types of prediction
-            ID = f"{idx:04d}"
-            np.save(ctx.path / f"{ID}_vs", vs)
-            np.save(ctx.path / f"{ID}_sv", sv)
-            np.save(ctx.path / f"{ID}_vv", vv)
-            np.save(ctx.path / f"{ID}_ss", ss)
+                _, ss_loss = getLoss("S-S", True)
+                save("S-S", _)
+                del _
             # Collect info to log
             info = [
-                ('vs', vs_loss), ('sv', sv_loss),
-                ('ss', ss_loss), ('vv', vv_loss)
+                ('V-S', vs_loss), ('S-V', sv_loss),
+                ('S-S', ss_loss), ('V-V', vv_loss)
             ]
             # Log to dedicated report file
             ctx.log(ID, '|', ' | '.join([
                 f"{t} {v:.04f}" for t, v in info
-            ]), file="results.txt")
+            ]), file="results.txt", visible=False)
         # Train strategy varies according to TRAIN_MODE
         elif TRAIN_MODE & ALL_MODES:
-            def step(loss):
-                self.optimizer.zero_grad()
+            def step(loss, optimizer):
+                optimizer.zero_grad()
                 loss.backward()
-                self.optimizer.step()
+                del loss
+                optimizer.step()
+            # Starting from visual
+            _ = None
             if TRAIN_MODE & VIS_ALONE:
-                vs, vs_loss = getLoss("vs")
-                step(vs_loss)
-            if TRAIN_MODE & SPI_ALONE:
-                sv, sv_loss = getLoss("sv")
-                step(sv_loss)
+                _, vs_loss = getLoss("V-S")
+                step(vs_loss, optim_spike)
             if TRAIN_MODE & VIS_JOINT:
-                vv, vv_loss = getLoss("vv")
-                step(vv_loss)
+                _, vv_loss = getLoss("V-V")  # depends on vs
+                step(vv_loss, optim_visual)
+            del _, PRED['V-V'], PRED['V-S']
+            # Starting from spike
+            _ = None
+            if TRAIN_MODE & SPI_ALONE:
+                _, sv_loss = getLoss("S-V")
+                step(sv_loss, optim_visual)
             if TRAIN_MODE & SPI_JOINT:
-                ss, ss_loss = getLoss("ss")
-                step(ss_loss)
+                _, ss_loss = getLoss("S-S")  # depends on sv
+                step(ss_loss, optim_spike)
+            del _, PRED['S-S'], PRED['S-V']
         # return super().iterate_batch(ctx, data_point, TRAIN_MODE)
         else:
             assert False, f"Unknown TRAIN_MODE [{TRAIN_MODE}]"
         # Return runtime info to epoch processor
-        for k in LOSS:
-            loss: torch.Tensor = LOSS[k]
-            LOSS[k] =loss.detach().cpu().numpy()
         return LOSS

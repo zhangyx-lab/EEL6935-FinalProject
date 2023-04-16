@@ -9,12 +9,13 @@ import torch
 import torch.nn as nn
 from dataset import Sample_t
 from .Node import Node
-from util.run import Context
+from lib.Module import Module
+from lib.Context import Context
 
 
-class Encoder(nn.Module):
-    def __init__(self, ctx: Context, sample: Sample_t, fc_layers: int = 1, scale: int = 3):
-        super().__init__()
+class Encoder(Module):
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers: int = 1, scale: int = 3):
+        super().__init__(device)
         # Unpack sample
         s, t = sample
         # Add 4th dimension to the sample
@@ -56,6 +57,8 @@ class Encoder(nn.Module):
             fc.append(nn.Linear(in_features, out_features))
         self.fc = nn.Sequential(*fc)
         self.activation = nn.Tanh()
+        # Define loss function
+        self.lossFunction = nn.MSELoss().to(device)
 
     def forward(self, x: torch.Tensor, train=False):
         b, h, w = x.shape

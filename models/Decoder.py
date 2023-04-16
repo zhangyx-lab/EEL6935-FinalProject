@@ -10,12 +10,13 @@ import torch
 import torch.nn as nn
 from dataset import Sample_t
 from .Node import Node
-from util.run import Context
+from lib.Module import Module
+from lib.Context import Context
 
 
-class Decoder(nn.Module):
-    def __init__(self, ctx: Context, sample: Sample_t, fc_layers: int = 1, scale=3):
-        super().__init__()
+class Decoder(Module):
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers: int = 1, scale=3):
+        super().__init__(device)
         # Unpack sample
         t, s = sample
         # Compute fc layers' out_channels
@@ -50,6 +51,8 @@ class Decoder(nn.Module):
             ctx.log("Decoder node shape", s.shape)
             layers.append(nn.ModuleList([upconv, node]))
         self.layers = nn.ModuleList(layers)
+        # Activation function for 0-1 grayscale
+        self.activation = nn.Sigmoid()
 
     def forward(self, x, train=False):
         x = self.fc(x)
@@ -58,6 +61,7 @@ class Decoder(nn.Module):
         for upconv, node in self.layers:
             x = upconv(x)
             x = node(x, train=train)
+        x = self.activation(x)
         b, _, h, w = x.shape
         x = x.view((b, h, w))
         return x

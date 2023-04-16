@@ -14,13 +14,14 @@ import torch
 from torch.utils.data import DataLoader
 # User includes
 from dataset import DataSet
-from util.loader import train_data, test_data
-from util.run import Run, RUN_PATH
-from util.device import DEVICE
+from lib.Context import Run, RUN_PATH
 from lib.Module import Module
+from util.loader import train_data, test_data
+from util.device import DEVICE
 import util.args as args
 # Model imports
 from models import MODELS
+from models.U_Net import VIS_ALONE, SPI_ALONE, VIS_JOINT, SPI_JOINT
 # Initialize datasets
 train_set = DataSet(train_data)
 test_set = DataSet(test_data)
@@ -37,7 +38,7 @@ with Run() as run:
     run.log("Random Seed   =", args.seed)
     # Initialize model
     run.log(banner="Model Initialization")
-    Model: Module = MODELS[args.model]
+    Model = MODELS[args.model]
     model: Module = Model(run, DEVICE, train_set.sample())
     model.to(DEVICE)
     # Model too large to be displayed
@@ -51,14 +52,18 @@ with Run() as run:
     if args.RUN_TRAIN:
         with run.context("train") as ctx:
             train_loader = DataLoader(train_set, batch_size=args.batch_size)
-            ctx.log(banner="Training Model in ALL_ALONE mode")
-            model.run(train_loader, ctx, TRAIN_MODE=0b0011)
-            ctx.log(banner="Training Model in ALL_JOINT mode")
-            model.run(train_loader, ctx, TRAIN_MODE=0b1100)
-            ctx.log(banner="Training Model in ALL_ALONE mode")
-            model.run(train_loader, ctx, TRAIN_MODE=0b0011)
-            ctx.log(banner="Training Model in ALL_MODES")
-            model.run(train_loader, ctx, TRAIN_MODE=0b1111)
+            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
+            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
+            ctx.log(banner="Training [     VIS_JOINT     ]")
+            model.run(train_loader, ctx, TRAIN_MODE=VIS_JOINT)
+            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
+            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
+            ctx.log(banner="Training [     SPI_JOINT     ]")
+            model.run(train_loader, ctx, TRAIN_MODE=SPI_JOINT)
+            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
+            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
+            ctx.log(banner="Training [VIS_JOINT|SPI_JOINT]")
+            model.run(train_loader, ctx, TRAIN_MODE=VIS_JOINT | SPI_JOINT)
             # Save model to run dir
             run.log(">> Saving model states to:", run.path)
             model.save(run.path)

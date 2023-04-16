@@ -8,11 +8,12 @@
 # ---------------------------------------------------------
 # External Packages
 import torch
+from torch.utils.data import DataLoader
 import numpy as np
 from tqdm import tqdm
 # Local Imports
-from lib.Signal import Signal
-from util.run import Context
+from lib.Context import Context
+from util.env import ensure, Path
 import util.args as args
 from dataset import DataSet
 
@@ -23,7 +24,9 @@ class Module(torch.nn.Module):
         super().__init__()
         self.device = device
 
-    def save(self, path):
+    def save(self, path: Path):
+        """Overload this function for custom loading / saving"""
+        path = ensure(path / self.__class__.__name__)
         # Save model
         model = self.state_dict()
         torch.save(model, path / "model.pkl")
@@ -31,7 +34,9 @@ class Module(torch.nn.Module):
         optim = self.optimizer.state_dict()
         torch.save(optim, path / "optim.pkl")
 
-    def load(self, path):
+    def load(self, path: Path):
+        """Overload this function for custom loading / saving"""
+        path = ensure(path / self.__class__.__name__)
         # Load model
         model = torch.load(str(path / "model.pkl"))
         self.load_state_dict(model)
@@ -70,7 +75,7 @@ class Module(torch.nn.Module):
             if TRAIN_MODE:
                 score = self.iterate_batch(ctx, data_point, TRAIN_MODE=TRAIN_MODE)
             else:
-                with torch.no_grad:
+                with torch.no_grad():
                     score = self.iterate_batch(
                         ctx, data_point, TRAIN_MODE=TRAIN_MODE)
             if score_sum is None:
@@ -79,9 +84,11 @@ class Module(torch.nn.Module):
                 for k in score:
                     assert k in score_sum, k
                     score_sum[k] += score[k]
+            if ctx.signal.triggered:
+                break
         ctx.log(
             prefix,
-            ' | '.join([f"{k} {score_sum[k] / count:.4f}" for k in score_sum])
+            ' | '.join([f"{k} {score_sum[k] / count:.6E}" for k in score_sum])
         )
 
     # Virtual Function - Optional
@@ -115,10 +122,15 @@ class Module(torch.nn.Module):
         return self.score(prediction, truth, loss)
 
     # Run the model in either training mode or testing mode
-    def run(self, loader: DataSet, ctx: Context, TRAIN_MODE=False):
+    def run(self, loader: DataLoader | DataSet, ctx: Context, TRAIN_MODE=False):
+        # Auto determine number of epochs
         epochs = int(args.epochs) if TRAIN_MODE else 1
-        with Signal(context=ctx) as sig:
+        # Check if loader is torch DataLoader
+        if not isinstance(loader, DataLoader):
+            assert isinstance(loader, DataSet), loader
+            loader = DataLoader(loader, batch_size=1, shuffle=False)
+        with ctx.signal:
             for epoch in range(1, epochs + 1):
                 self.iterate_epoch(epoch, loader, ctx, TRAIN_MODE=TRAIN_MODE)
-                if sig.triggered:
+                if ctx.signal.triggered:
                     break

@@ -4,7 +4,12 @@ _Yuxuan Zhang_ @ _[University of Florida](https://ufl.edu)_
 
 ## Objectives
 
-1. 
+1. `DONE` Implement encoder-decoder structure model for this dataset
+1. `DONE` Support modulized training patterns for the model
+1. `DONE` Save all types of model predictions to run-dir
+1. `TODO` Add data augmentation (affine) for training process
+1. `TODO` Implement perceptual loss for the visual end of the model
+1. `TODO` Add visualization for the _"critical path"_ of both encoder and decoder
 
 ## The Kay Natural Image Dataset
 

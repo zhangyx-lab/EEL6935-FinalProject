@@ -31,14 +31,15 @@ class Signal:
     def __init__(self, context=None, sig=SIGINT):
         self.signal = sig
         self.context = context
-        self.previous_handler = getsignal(self.signal)
-        signal(self.signal, self.handler)
 
     def __enter__(self):
+        self.previous_handler = getsignal(self.signal)
+        signal(self.signal, self.handler)
         return self
 
     def __exit__(self, *args):
         signal(self.signal, self.previous_handler)
+        self.triggered = None
 
 
 if __name__ == "__main__":

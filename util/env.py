@@ -46,12 +46,14 @@ VAR_PATH = BASE / "var"
 RUN_PATH = BASE / "run"
 
 
-def ensureDir(path) -> Path:
-    if not exists(str(path)):
-        mkdir(str(path))
-    return Path(path)
+def ensure(path) -> Path:
+    if not isinstance(path, Path):
+        path = Path(path)
+    if not exists(path):
+        mkdir(path)
+    return path
 
 
 # Create paths if not exist
-for d in [VAR_PATH, RUN_PATH]:
-    ensureDir(d)
+for d in [DATA_PATH, VAR_PATH, RUN_PATH]:
+    ensure(d)
