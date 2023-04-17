@@ -28,14 +28,6 @@ with Run() as run:
     # Initialize random seed (IMPORTANT!!!)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
-    # Record all free parameters
-    run.log("Device        =", DEVICE)
-    run.log("Training Mode =", args.train_mode)
-    run.log("Num Epochs    =", args.epochs)
-    run.log("Batch Size    =", args.batch_size)
-    run.log("Optimizer     =", "Adam")
-    run.log("Learning Rate =", args.learning_rate)
-    run.log("Random Seed   =", args.seed)
     # Initialize model
     run.log(banner="Model Initialization")
     Model = MODELS[args.model]
@@ -43,6 +35,14 @@ with Run() as run:
     model.to(DEVICE)
     # Model too large to be displayed
     run.log(model, file="model.txt", visible=False)
+    run.log(model.optimizer, file="optim.txt", visible=False)
+    # Record all free parameters
+    run.log(banner="Free Parameters")
+    run.log("Device        =", DEVICE)
+    run.log("Training Mode =", args.train_mode)
+    run.log("Num Epochs    =", args.epochs)
+    run.log("Batch Size    =", args.batch_size)
+    run.log("Random Seed   =", args.seed)
     # Check for previous model to load
     if args.load is not None:
         run.log(banner="Loading States")

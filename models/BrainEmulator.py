@@ -12,6 +12,7 @@ from lib.Context import Context
 from .Node import Node
 from .config import SCALE, FC_LAYERS
 from util.loader import ROI
+from util.optimizer import optimizer
 
 """
 Hirachy of actual human brain:
@@ -40,7 +41,7 @@ class BrainEmulator(nn.Module):
         # Activation function for -1~1 voxel spike
         self.activation = nn.Tanh()
         # Initialize optimizer
-        self.optimizer = torch.optim.Adam(self.parameters())
+        self.optimizer = optimizer(self)
 
     def forward(self, x: torch.Tensor, train=None):
         b, h, w = x.shape

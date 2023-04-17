@@ -11,6 +11,7 @@ from dataset import Sample_t
 from lib.Module import Module
 from lib.Context import Context
 from util.augment import affine
+from util.optimizer import optimizer
 from .Node import Node
 from .config import SCALE, FC_LAYERS
 
@@ -61,7 +62,7 @@ class Encoder(Module):
         # Activation function for -1~1 voxel spike
         # self.activation = nn.Tanh()
         # Initialize optimizer
-        self.optimizer = torch.optim.Adam(self.parameters())
+        self.optimizer = optimizer(self)
 
     def iterate_batch(self, ctx: Context, *data_point, train=None):
         if train and "AFFINE" in train:

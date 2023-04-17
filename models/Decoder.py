@@ -11,6 +11,7 @@ import torch.nn as nn
 from dataset import Sample_t
 from lib.Module import Module
 from lib.Context import Context
+from util.optimizer import optimizer
 from .Node import Node
 from .config import SCALE, FC_LAYERS
 
@@ -55,8 +56,8 @@ class Decoder(Module):
         # Activation function for 0~1 grayscale image
         self.activation = nn.Sigmoid()
         # Initialize optimizer
-        self.optimizer = torch.optim.Adam(self.parameters())
-        
+        self.optimizer = optimizer(self)
+
     def iterate_batch(self, ctx: Context, visual, spike, *args, train=False):
         return super().iterate_batch(ctx, spike, visual, *args, train=train)
 

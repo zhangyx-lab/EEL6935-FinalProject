@@ -8,6 +8,7 @@
 import torch
 import torch.nn as nn
 from dataset import Sample_t
+from util.optimizer import optimizer
 from util.env import Path
 from lib.Context import Context
 from lib.Module import Module
@@ -35,7 +36,7 @@ class Model(Module):
         assert visual.shape == out.shape, f"{visual.shape} != {out.shape}"
         del out
         # ============== Optimizer ==============
-        self.optimizer = torch.optim.Adam(self.parameters())
+        self.optimizer = optimizer(self)
 
     def save(self, ctx: Context, path: Path):
         self.encoder.save(ctx, path)

@@ -49,6 +49,12 @@ parser.add_argument(
     help="Learning rate"
 )
 
+parser.add_argument(
+    '-d', '--weight-decay',
+    type=float, default=0,
+    help="Weight Decay"
+)
+
 # parser.add_argument(
 #     '-k', '--kFoldRatio',
 #     type=float, default=0.8,
@@ -84,6 +90,7 @@ else:
     epochs: int = ARGS.epochs
     batch_size: int = ARGS.batch_size
     learning_rate: float = ARGS.learning_rate
+    weight_decay: float = ARGS.weight_decay
     load: str | None = ARGS.load
     seed: int = ARGS.seed
     model = ARGS.model

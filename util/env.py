@@ -41,6 +41,7 @@ DEVICE = torch.device(getDevice(DEBUG))
 BASE = Path(dirname(dirname(realpath(__file__))))
 # Path constants
 DATA_PATH = BASE / "data"
+VAR_PATH = BASE / "var"
 RUN_PATH = BASE / "run"
 
 
@@ -53,7 +54,7 @@ def ensure(path) -> Path:
 
 
 # Create paths if not exist
-for d in [DATA_PATH, RUN_PATH]:
+for d in [DATA_PATH, VAR_PATH, RUN_PATH]:
     ensure(d)
 
 

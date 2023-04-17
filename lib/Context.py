@@ -41,7 +41,7 @@ class Context:
             return p
         # Print banner (optional)
         if banner is not None:
-            w = (80 - len(banner)) / 2
+            w = (78 - len(banner)) / 2
             if w < 1:
                 print(banner)
             else:
