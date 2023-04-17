@@ -49,11 +49,12 @@ class Context:
                 r = ''.join(['='] * floor(w))
                 print(l, banner, r)
         # Print args if applicable
-        if len(args) and visible:
+        if len(args):
             with open(self.path / file, 'a') as log:
                 print(*args, file=log)
             # Duplex to stdout
-            print(f"{self.id} |", *args)
+            if visible:
+                print(f"{self.id} |", *args)
 
     def interrupt(self, code: int = -1):
         if self.parent is not None:
