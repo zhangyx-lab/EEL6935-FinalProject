@@ -13,95 +13,120 @@ import numpy as np
 from tqdm import tqdm
 # Local Imports
 from lib.Context import Context
-from util.env import ensure, Path
+from util.env import ensure, exists, Path, relative
 import util.args as args
 from dataset import DataSet
 
 
 class Module(torch.nn.Module):
 
-    def __init__(self, device, sample=None):
+    def __init__(self, device, sample=None, loss=None):
         super().__init__()
         self.device = device
+        self.loss = loss
 
-    def save(self, path: Path):
+    def save(self, ctx: Context, path: Path):
         """Overload this function for custom loading / saving"""
-        path = ensure(path / self.__class__.__name__)
+        name = self.__class__.__name__
+        if not isinstance(path, Path):
+            path = Path(path)
         # Save model
+        model_path = ensure(path / "model") / f"{name}.pkl"
         model = self.state_dict()
-        torch.save(model, path / "model.pkl")
+        torch.save(model, model_path)
+        ctx.log(f"Model state of {name} saved to {relative(model_path)}")
         # Save optimizer
+        optim_path = ensure(path / "optim") / f"{name}.pkl"
         optim = self.optimizer.state_dict()
-        torch.save(optim, path / "optim.pkl")
+        torch.save(optim, optim_path)
+        ctx.log(f"Optim state of {name} saved to {relative(optim_path)}")
 
-    def load(self, path: Path):
+    def load(self, ctx: Context, *path_list: Path):
         """Overload this function for custom loading / saving"""
-        path = ensure(path / self.__class__.__name__)
+        name = self.__class__.__name__
+        # Use the first path from the list
+        assert len(path_list) == 1, path_list
+        # If there is more than 1 elements in the path list,
+        # The module should have implemented its own load logic.
+        path = path_list[0]
+        if not isinstance(path, Path):
+            path = Path(path)
         # Load model
-        model = torch.load(str(path / "model.pkl"))
-        self.load_state_dict(model)
+        model_path = path / "model" / f"{name}.pkl"
+        if exists(model_path):
+            model = torch.load(model_path)
+            self.load_state_dict(model)
+            ctx.log(
+                f"Model state of {name} loaded from {relative(model_path)}")
+        else:
+            ctx.log(
+                f"[WARNING] {relative(model_path)} does not exist, skipping...")
         # Load optimizer
-        optim = torch.save(optim, path / "optim.pkl")
-        self.optimizer.load_state_dict(optim)
+        optim_path = path / "optim" / f"{name}.pkl"
+        if exists(optim_path):
+            optim = torch.load(optim_path)
+            self.optimizer.load_state_dict(optim)
+            ctx.log(
+                f"Optim state of {name} loaded from {relative(optim_path)}")
+        else:
+            ctx.log(
+                f"[WARNING] {relative(optim_path)} does not exist, skipping...")
 
     # Virtual Function
     def lossFunction(self, pred, truth):
         """Calculates loss from given prediction against ground truth"""
-        raise NotImplementedError
+        if self.loss is None:
+            print(self.loss)
+            raise NotImplementedError
+        return self.loss(pred, truth)
 
     # Virtual Function - Optional
-    def score(self, pred, truth, loss):
-        """
-        [ Virtual | Optional ]
-        Calculates the score based on given prediction, ground truth and loss
-        """
-        return [("loss", loss), ("anything", 0)]
-
-    # Virtual Function - Optional
-    def iterate_epoch(self, epoch, loader: DataSet, ctx: Context, TRAIN_MODE=False):
+    def iterate_epoch(self, epoch, loader: DataSet, ctx: Context, train=None):
         """
         [ Virtual | Optional ]
         Iterate one epoch
         """
         # Prefix
-        prefix = f"Epoch {epoch:03d} |" if TRAIN_MODE else "Test ---- |"
+        prefix = f"Epoch {epoch:4d}" if train else "Test ----"
         # Progress bar
-        prog = tqdm(loader, leave=False)
+        prog = tqdm(loader, leave=False, ncols=80,
+                    bar_format="{l_bar} |{bar}| {n_fmt}/{total_fmt} {rate_fmt}{postfix}")
         prog.set_description(prefix)
-        score_sum = None
-        count = 0
+        hist = {}
         for data_point in prog:
-            count += 1
-            if TRAIN_MODE:
-                score = self.iterate_batch(ctx, data_point, TRAIN_MODE=TRAIN_MODE)
+            if train:
+                score = self.iterate_batch(
+                    ctx, *data_point, train=train)
             else:
                 with torch.no_grad():
                     score = self.iterate_batch(
-                        ctx, data_point, TRAIN_MODE=TRAIN_MODE)
-            if score_sum is None:
-                score_sum = score
-            else:
-                for k in score:
-                    assert k in score_sum, k
-                    score_sum[k] += score[k]
+                        ctx, *data_point, train=train)
+            for k in score:
+                if k in hist:
+                    hist[k] += [score[k]]
+                else:
+                    hist[k] = [score[k]]
             if ctx.signal.triggered:
                 break
-        ctx.log(
-            prefix,
-            ' | '.join([f"{k} {score_sum[k] / count:.6E}" for k in score_sum])
-        )
+        # Generate epoch report
+        report = [f"{k} {np.average(hist[k]):.6E}" for k in hist]
+        ctx.log(prefix, '|', ' | '.join(report))
+        # Save all intermediate data pushed into context during training.
+        for key, mem in ctx.collect_all():
+            path = ctx.path / key
+            res = np.stack(mem, axis=0)
+            np.save(path, res)
+            ctx.log(f"Saved {relative(path)}: {res.shape} ({res.dtype})")
 
-    # Virtual Function - Optional
-
-    def iterate_batch(self, ctx: Context, data_point: list[torch.Tensor, torch.Tensor, torch.Tensor], TRAIN_MODE=False):
+    def iterate_batch(self, ctx: Context, *data_point, train=None):
         """
         [ Virtual | Optional ]
         Iterate one batch
         """
-        batch, truth, name = data_point
+        batch, truth = list(data_point)[:2]
         batch = batch.to(self.device)
         # Forward pass
-        prediction = self(batch, train=TRAIN_MODE)
+        prediction = self(batch, train=train)
         # Release batch memory
         del batch
         # Compute truth
@@ -109,7 +134,7 @@ class Module(torch.nn.Module):
         # Compute loss
         loss = self.lossFunction(prediction, truth)
         # Check for run mode
-        if TRAIN_MODE:
+        if train:
             # Clear previously computed gradient
             self.optimizer.zero_grad()
             # Backward Propagation
@@ -117,20 +142,29 @@ class Module(torch.nn.Module):
             # Optimizing the parameters
             self.optimizer.step()
         else:
-            np.save(ctx.path / str(name), prediction)
+            prediction = prediction.detach().cpu().numpy()
+            name = self.__class__.__name__
+            ctx.push(f"{name}.prediction", prediction)
         # Report results
-        return self.score(prediction, truth, loss)
+        return {
+            "loss": loss.detach().cpu().numpy()
+        }
 
-    # Run the model in either training mode or testing mode
-    def run(self, loader: DataLoader | DataSet, ctx: Context, TRAIN_MODE=False):
+    def forward(self, x: torch.Tensor, train=None):
+        raise NotImplementedError
+
+    def run(self, ctx: Context, loader: DataLoader | DataSet, train=None):
+        """
+        Run the model in either training mode or testing mode
+        """
         # Auto determine number of epochs
-        epochs = int(args.epochs) if TRAIN_MODE else 1
+        epochs = int(args.epochs) if train else 1
         # Check if loader is torch DataLoader
         if not isinstance(loader, DataLoader):
             assert isinstance(loader, DataSet), loader
             loader = DataLoader(loader, batch_size=1, shuffle=False)
         with ctx.signal:
             for epoch in range(1, epochs + 1):
-                self.iterate_epoch(epoch, loader, ctx, TRAIN_MODE=TRAIN_MODE)
+                self.iterate_epoch(epoch, loader, ctx, train=train)
                 if ctx.signal.triggered:
                     break

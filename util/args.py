@@ -20,6 +20,12 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--train-mode',
+    type=str, default='generic',
+    help="Training mode to be passed towards model. Separate multiple arguments with ':'"
+)
+
+parser.add_argument(
     '-e', '--epochs',
     type=int, default=10,
     help="Number of epochs"
@@ -74,6 +80,7 @@ else:
     RUN_TRAIN = CMD in ['run-all', 'train']
     RUN_TEST = CMD in ['run-all', 'test']
     model: str = ARGS.model
+    train_mode: str = str(ARGS.train_mode).upper().split(':')
     epochs: int = ARGS.epochs
     batch_size: int = ARGS.batch_size
     learning_rate: float = ARGS.learning_rate

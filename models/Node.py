@@ -20,7 +20,7 @@ class Node(nn.Module):
         for layer in [self.conv1, self.conv2]:
             nn.init.normal_(layer.weight, mean=0, std=1e-2)
 
-    def forward(self, x, train=False):
+    def forward(self, x, train=None):
         if train:
             x = self.norm1(x)
         x = self.relu1(x)

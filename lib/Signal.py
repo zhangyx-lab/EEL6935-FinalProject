@@ -12,9 +12,13 @@ from sys import exit
 
 class Signal:
     triggered = False
+    abortable = True
 
     def handler(self, signal, *args, **kwargs):
         assert signal == self.signal, signal
+        if not self.abortable:
+            print("\nSignal ignored: current procedure is not abortable.")
+            return
         if self.triggered:
             if self.context is not None:
                 self.context.interrupt()
@@ -28,9 +32,10 @@ class Signal:
                 print("[SIGNAL Triggered] Aborting...")
             print("Press Ctrl-C again to exit NOW")
 
-    def __init__(self, context=None, sig=SIGINT):
+    def __init__(self, context=None, sig=SIGINT, abortable=True):
         self.signal = sig
         self.context = context
+        self.abortable = abortable
 
     def __enter__(self):
         self.previous_handler = getsignal(self.signal)

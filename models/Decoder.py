@@ -9,14 +9,15 @@ from math import log
 import torch
 import torch.nn as nn
 from dataset import Sample_t
-from .Node import Node
 from lib.Module import Module
 from lib.Context import Context
+from .Node import Node
+from .config import SCALE, FC_LAYERS
 
 
 class Decoder(Module):
-    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers: int = 1, scale=3):
-        super().__init__(device)
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE):
+        super().__init__(device, loss=nn.MSELoss().to(device))
         # Unpack sample
         t, s = sample
         # Compute fc layers' out_channels
@@ -51,10 +52,15 @@ class Decoder(Module):
             ctx.log("Decoder node shape", s.shape)
             layers.append(nn.ModuleList([upconv, node]))
         self.layers = nn.ModuleList(layers)
-        # Activation function for 0-1 grayscale
+        # Activation function for 0~1 grayscale image
         self.activation = nn.Sigmoid()
+        # Initialize optimizer
+        self.optimizer = torch.optim.Adam(self.parameters())
+        
+    def iterate_batch(self, ctx: Context, visual, spike, *args, train=False):
+        return super().iterate_batch(ctx, spike, visual, *args, train=train)
 
-    def forward(self, x, train=False):
+    def forward(self, x, train=None):
         x = self.fc(x)
         b, w = x.shape
         x = x.view((b, w, 1, 1))

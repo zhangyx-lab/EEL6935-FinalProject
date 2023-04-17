@@ -6,7 +6,6 @@
 # Derives environment variables and parameters from various
 # sources, and maintains the file structure of the project.
 # ---------------------------------------------------------
-import sys
 from pathlib import Path
 from os import mkdir, environ
 from os.path import exists, dirname, realpath
@@ -42,7 +41,6 @@ DEVICE = torch.device(getDevice(DEBUG))
 BASE = Path(dirname(dirname(realpath(__file__))))
 # Path constants
 DATA_PATH = BASE / "data"
-VAR_PATH = BASE / "var"
 RUN_PATH = BASE / "run"
 
 
@@ -55,5 +53,12 @@ def ensure(path) -> Path:
 
 
 # Create paths if not exist
-for d in [DATA_PATH, VAR_PATH, RUN_PATH]:
+for d in [DATA_PATH, RUN_PATH]:
     ensure(d)
+
+
+def relative(path: Path, base: Path = BASE):
+    try:
+        return path.relative_to(base)
+    except:
+        return path

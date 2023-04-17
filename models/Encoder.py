@@ -8,14 +8,16 @@
 import torch
 import torch.nn as nn
 from dataset import Sample_t
-from .Node import Node
 from lib.Module import Module
 from lib.Context import Context
+from util.augment import affine
+from .Node import Node
+from .config import SCALE, FC_LAYERS
 
 
 class Encoder(Module):
-    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers: int = 1, scale: int = 3):
-        super().__init__(device)
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE):
+        super().__init__(device, loss=nn.HuberLoss().to(device))
         # Unpack sample
         s, t = sample
         # Add 4th dimension to the sample
@@ -56,11 +58,20 @@ class Encoder(Module):
             fc.append(nn.LeakyReLU())
             fc.append(nn.Linear(in_features, out_features))
         self.fc = nn.Sequential(*fc)
-        self.activation = nn.Tanh()
-        # Define loss function
-        self.lossFunction = nn.MSELoss().to(device)
+        # Activation function for -1~1 voxel spike
+        # self.activation = nn.Tanh()
+        # Initialize optimizer
+        self.optimizer = torch.optim.Adam(self.parameters())
 
-    def forward(self, x: torch.Tensor, train=False):
+    def iterate_batch(self, ctx: Context, *data_point, train=None):
+        if train and "AFFINE" in train:
+            visual, spike = list(data_point)[:2]
+            visual = affine(visual)
+            return super().iterate_batch(ctx, visual, spike, train=train)
+        else:
+            return super().iterate_batch(ctx, *data_point, train=train)
+
+    def forward(self, x: torch.Tensor, train=None):
         b, h, w = x.shape
         x = x.view((b, -1, h, w))
         # Down sampling layers
@@ -71,5 +82,5 @@ class Encoder(Module):
         x = x.view((b, -1))
         x = self.fc(x)
         # Final activation function
-        x = self.activation(x)
+        # x = self.activation(x)
         return x

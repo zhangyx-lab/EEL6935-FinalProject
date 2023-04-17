@@ -21,7 +21,6 @@ from util.device import DEVICE
 import util.args as args
 # Model imports
 from models import MODELS
-from models.U_Net import VIS_ALONE, SPI_ALONE, VIS_JOINT, SPI_JOINT
 # Initialize datasets
 train_set = DataSet(train_data)
 test_set = DataSet(test_data)
@@ -31,6 +30,7 @@ with Run() as run:
     torch.manual_seed(args.seed)
     # Record all free parameters
     run.log("Device        =", DEVICE)
+    run.log("Training Mode =", args.train_mode)
     run.log("Num Epochs    =", args.epochs)
     run.log("Batch Size    =", args.batch_size)
     run.log("Optimizer     =", "Adam")
@@ -45,35 +45,26 @@ with Run() as run:
     run.log(model, file="model.txt", visible=False)
     # Check for previous model to load
     if args.load is not None:
-        load_path = RUN_PATH / args.load
-        run.log(">> Loading model states from:", load_path)
-        model.load(load_path)
+        run.log(banner="Loading States")
+        run_list = args.load.split(":")
+        run.log(">> Loading model states from:", run_list)
+        path_list = [RUN_PATH / _ for _ in run_list]
+        model.load(run, *path_list)
     # ================================= TRAIN =================================
     if args.RUN_TRAIN:
         with run.context("train") as ctx:
             train_loader = DataLoader(train_set, batch_size=args.batch_size)
-            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
-            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
-            ctx.log(banner="Training [     VIS_JOINT     ]")
-            model.run(train_loader, ctx, TRAIN_MODE=VIS_JOINT)
-            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
-            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
-            ctx.log(banner="Training [     SPI_JOINT     ]")
-            model.run(train_loader, ctx, TRAIN_MODE=SPI_JOINT)
-            ctx.log(banner="Training [VIS_ALONE|SPI_ALONE]")
-            model.run(train_loader, ctx, TRAIN_MODE=VIS_ALONE | SPI_ALONE)
-            ctx.log(banner="Training [VIS_JOINT|SPI_JOINT]")
-            model.run(train_loader, ctx, TRAIN_MODE=VIS_JOINT | SPI_JOINT)
-            # Save model to run dir
-            run.log(">> Saving model states to:", run.path)
-            model.save(run.path)
+            ctx.log(banner="Training Model")
+            model.run(ctx, train_loader, train=args.train_mode)
+            ctx.log(banner="Saving States")
+            model.save(ctx, run.path)
             # Save model prediction on training set
-            ctx.log(banner="Running Test on TRAINING SET")
-            model.run(train_set, ctx)
+            ctx.log(banner="Running Prediction on TRAINING SET")
+            model.run(ctx, train_set)
     # ================================== TEST =================================
     if args.RUN_TEST:
         with run.context("test") as ctx:
-            ctx.log(banner="Running Test on TEST SET")
-            model.run(test_set, ctx)
+            ctx.log(banner="Running Prediction on TEST SET")
+            model.run(ctx, test_set)
     # Congratulations!
     run.log(f"RUN<{run.id}> completed!", banner="Success")
