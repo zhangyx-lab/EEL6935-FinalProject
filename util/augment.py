@@ -12,9 +12,9 @@ def randfloat(l: float, r: float) -> float:
     return l + random() * (r - l)
 
 
-def affine(*samples: Tensor, trans_r=[-0.25, 0.25], scale_r=[0.8, 2.0], shear=[-10, 10]):
+def affine(*samples: Tensor, rot_r=[-15, 15], trans_r=[-0.1, 0.1], scale_r=[0.8, 1.2], shear=[-10, 10]):
     # -180 ~ +180 degrees
-    angle = randfloat(-180, 180)
+    angle = randfloat(*rot_r)
     # Depending on size of the tensor
     tH, tW = [randfloat(*trans_r) for _ in range(2)]
 
