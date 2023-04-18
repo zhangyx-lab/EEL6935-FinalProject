@@ -10,6 +10,7 @@ dependencies:
   - scikit-learn
   - torchvision
   - matplotlib
+  - termtables
   - autopep8
   - pytorch
   - opencv

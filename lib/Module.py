@@ -36,10 +36,13 @@ class Module(torch.nn.Module):
         torch.save(model, model_path)
         ctx.log(f"Model state of {name} saved to {relative(model_path)}")
         # Save optimizer
-        optim_path = ensure(path / "optim") / f"{name}.pkl"
-        optim = self.optimizer.state_dict()
-        torch.save(optim, optim_path)
-        ctx.log(f"Optim state of {name} saved to {relative(optim_path)}")
+        if hasattr(self, 'optimizer'):
+            optim_path = ensure(path / "optim") / f"{name}.pkl"
+            optim = self.optimizer.state_dict()
+            torch.save(optim, optim_path)
+            ctx.log(f"Optim state of {name} saved to {relative(optim_path)}")
+        else:
+            ctx.log("[WARN] Model", name, "does not have a optimizer")
 
     def load(self, ctx: Context, *path_list: Path):
         """Overload this function for custom loading / saving"""
@@ -54,7 +57,7 @@ class Module(torch.nn.Module):
         # Load model
         model_path = path / "model" / f"{name}.pkl"
         if exists(model_path):
-            model = torch.load(model_path)
+            model = torch.load(model_path, map_location=self.device)
             self.load_state_dict(model)
             ctx.log(
                 f"Model state of {name} loaded from {relative(model_path)}")
@@ -63,14 +66,15 @@ class Module(torch.nn.Module):
                 f"[WARNING] {relative(model_path)} does not exist, skipping...")
         # Load optimizer
         optim_path = path / "optim" / f"{name}.pkl"
-        if exists(optim_path):
-            optim = torch.load(optim_path)
+        if not hasattr(self, 'optimizer'):
+            ctx.log("Model", name, "has no optimizer, skipping...")
+        elif not exists(optim_path):
+            ctx.log("[WARN]", relative(optim_path), "not exist, skipping...")
+        else:
+            optim = torch.load(optim_path, map_location=self.device)
             self.optimizer.load_state_dict(optim)
             ctx.log(
                 f"Optim state of {name} loaded from {relative(optim_path)}")
-        else:
-            ctx.log(
-                f"[WARNING] {relative(optim_path)} does not exist, skipping...")
 
     # Virtual Function
     def lossFunction(self, pred, truth):

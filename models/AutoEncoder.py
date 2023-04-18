@@ -23,13 +23,13 @@ class Model(Module):
         super(Model, self).__init__(device, loss=nn.MSELoss().to(device))
         visual, spike = sample
         # =============== Encoder ===============
-        self.encoder = Encoder(ctx, device, sample, FC_LAYERS, SCALE)
+        self.encoder = Encoder(ctx, device, sample, FC_LAYERS, SCALE, train=False)
         out = self.encoder(visual)
         # Report shape
         assert spike.shape == out.shape, f"{spike.shape} != {out.shape}"
         del out
         # =============== Decoder ===============
-        self.decoder = Decoder(ctx, device, sample, FC_LAYERS, SCALE)
+        self.decoder = Decoder(ctx, device, sample, FC_LAYERS, SCALE, train=False)
         out = self.decoder(spike)
         # Report output shape
         ctx.log("Decoder output shape", out.shape)
@@ -60,13 +60,41 @@ class Model(Module):
             return super().iterate_batch(ctx, *data_point, train=train)
         else:
             visual, spike = list(data_point)[:2]
+            visual = visual.to(self.device)
+            spike = spike.to(self.device)
             report = {}
             with torch.no_grad():
-                encoder_pred = self.encoder(visual)
-                loss = self.encoder.loss(visual, spike)
-                # report[]
-                VisualAE_pred = self.decoder(encoder_pred)
-                dec_pred = self.decoder(spike)
+                # Encoder driven
+                spike_pred = self.encoder(visual)
+                loss = self.encoder.loss(spike_pred, spike)
+                report["encoder loss"] = loss.detach().cpu().numpy()
+                pred = spike_pred.detach().cpu().numpy()
+                ctx.push('Encoder.prediction', pred)
+
+                visual_pred = self.decoder(spike_pred)
+                loss = self.decoder.loss(visual_pred, visual)
+                report["enc-dec loss"] = loss.detach().cpu().numpy()
+                pred = visual_pred.detach().cpu().numpy()
+                ctx.push('VisualAE.prediction', pred)
+
+                del spike_pred, visual_pred, loss
+
+                # Decoder driven
+                visual_pred = self.decoder(spike)
+                loss = self.decoder.loss(visual_pred, visual)
+                report["decoder loss"] = loss.detach().cpu().numpy()
+                pred = visual_pred.detach().cpu().numpy()
+                ctx.push('Decoder.prediction', pred)
+
+                spike_pred = self.encoder(visual_pred)
+                loss = self.encoder.loss(spike_pred, spike)
+                report["dec-enc loss"] = loss.detach().cpu().numpy()
+                pred = spike_pred.detach().cpu().numpy()
+                ctx.push('SpikeAE.prediction', pred)
+
+                del spike_pred, visual_pred, loss
+
+            return report
 
 
 class VisualAE(Model):

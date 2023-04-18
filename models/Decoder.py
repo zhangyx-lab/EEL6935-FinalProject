@@ -17,7 +17,7 @@ from .config import SCALE, FC_LAYERS
 
 
 class Decoder(Module):
-    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE):
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE, train=True):
         super().__init__(device, loss=nn.MSELoss().to(device))
         # Unpack sample
         t, s = sample
@@ -56,7 +56,8 @@ class Decoder(Module):
         # Activation function for 0~1 grayscale image
         self.activation = nn.Sigmoid()
         # Initialize optimizer
-        self.optimizer = optimizer(self)
+        if train:
+            self.optimizer = optimizer(self)
 
     def iterate_batch(self, ctx: Context, visual, spike, *args, train=False):
         return super().iterate_batch(ctx, spike, visual, *args, train=train)

@@ -8,6 +8,7 @@
 # ---------------------------------------------------------
 import termtables as tt
 from util.loader import dat, ROI, ROI_NAMES, train_data, test_data
+from util.env import VAR_PATH
 import numpy as np
 import matplotlib.pyplot as plt
 from random import shuffle
@@ -41,11 +42,11 @@ for set_name, ds in [("train_data", train_data), ("test_data", test_data)]:
     indexes = indexes[:8]
     indexes.sort()
     tt.print(
-        [[i] + list(ds.labels[:, i]) for i in indexes],
+        [[i] + list(ds.labels[:4, i]) for i in indexes],
         header=["", "WordNet P1", "WordNet P2", "WordNet P3", "ImageNet DNN"]
     )
     # Each stimulus is a 128 x 128 grayscale array:
-    fig, axs = plt.subplots(2, 4, figsize=(12, 6), sharex=True, sharey=True)
+    fig, axs = plt.subplots(2, 4, figsize=(12, 6), sharex=True, sharey=True, dpi=600)
     fig.canvas.manager.set_window_title('raw images')
     for ax, i in zip(axs.flat, indexes):
         img = dat["stimuli"][i]
@@ -54,11 +55,10 @@ for set_name, ds in [("train_data", train_data), ("test_data", test_data)]:
         ax.imshow(img, cmap="gray")
         ax.set_title(label[-1])
     fig.tight_layout()
-    fig.show()
-    plt.show()
+    fig.savefig(str(VAR_PATH / f"{set_name}-visual.png"), transparent=True)
 
     # Initiate response plot figure
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(12, 5), dpi=600)
     fig.canvas.manager.set_window_title('neural recordings')
 
     # Each stimulus is associated with a pattern of BOLD response across voxels in visual cortex:
@@ -66,5 +66,4 @@ for set_name, ds in [("train_data", train_data), ("test_data", test_data)]:
     ax.set_title("responses")
     heatmap = ax.imshow(ds.responses, aspect="auto", vmin=-1, vmax=1, cmap="bwr")
     plt.colorbar(heatmap, shrink=.5, label="Response amplitude (Z)", ax=ax)
-
-plt.show()
+    fig.savefig(str(VAR_PATH / f"{set_name}-spike.png"), transparent=True)

@@ -17,7 +17,7 @@ from .config import SCALE, FC_LAYERS
 
 
 class Encoder(Module):
-    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE):
+    def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE, train=True):
         super().__init__(device, loss=nn.HuberLoss().to(device))
         # Unpack sample
         s, t = sample
@@ -62,7 +62,8 @@ class Encoder(Module):
         # Activation function for -1~1 voxel spike
         # self.activation = nn.Tanh()
         # Initialize optimizer
-        self.optimizer = optimizer(self)
+        if train:
+            self.optimizer = optimizer(self)
 
     def iterate_batch(self, ctx: Context, *data_point, train=None):
         if train and "AFFINE" in train:
