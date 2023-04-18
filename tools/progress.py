@@ -22,10 +22,10 @@ plt.rcParams.update({
 
 
 def log2arr(lines: list[str]):
-    result = []
+    result = {}
     for line in lines:
-        line = line.strip()
-        if not line.startswith('Epoch'):
+        line = line.strip().split('|')
+        if len(line) <= 1:
             continue
         _, value = line.split('|')[:2]
         # epoch = int(epoch.split()[1])

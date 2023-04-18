@@ -1,3 +1,10 @@
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# Dataset wrapper for Ken Natural Images
+# ---------------------------------------------------------
 import sys
 from typing import Tuple
 from random import randint

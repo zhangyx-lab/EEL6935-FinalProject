@@ -1,3 +1,10 @@
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
 from os import environ
 import torch
 from util.env import DEBUG

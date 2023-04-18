@@ -1,3 +1,10 @@
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
 from sys import argv
 from util.env import RUN_PATH
 from lib.Signal import Signal

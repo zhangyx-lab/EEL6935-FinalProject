@@ -49,7 +49,8 @@ for set_name, ds in [("train_data", train_data), ("test_data", test_data)]:
     fig, axs = plt.subplots(2, 4, figsize=(12, 6), sharex=True, sharey=True, dpi=600)
     fig.canvas.manager.set_window_title('raw images')
     for ax, i in zip(axs.flat, indexes):
-        img = dat["stimuli"][i]
+        img = ds.stimuli[i]
+        print(img.shape)
         label = ds.labels[:, i]
         # Render to subplot
         ax.imshow(img, cmap="gray")

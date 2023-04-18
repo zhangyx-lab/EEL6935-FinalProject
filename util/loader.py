@@ -10,6 +10,7 @@ import os
 import requests
 from collections import namedtuple
 import numpy as np
+import torch
 from util.env import DATA_PATH
 
 RES = namedtuple('Resource', ['filename', 'hash'])
@@ -30,17 +31,52 @@ for name, hash in [KAY_LABELS, KAY_LABELS_VAL, KAY_IMAGES]:
         with open(path, "wb") as f:
             f.write(r.content)
         print(f"Download {name} completed!")
+
+# Function to reorder voxels
+
+
+def reorganize(*names, src: np.ndarray, lut: dict[str, int]):
+    ids = [lut[name] for name in names]
+    bins = [[] for _ in range(len(names))]
+    # Throw indexes into bins
+    for i, id in zip(range(len(src)), src):
+        if not id in ids:
+            print("Warning: throwing away unknown region, id =", id)
+        else:
+            bins[ids.index(id)].append(i)
+    # Collect indexes
+    dst = []
+    for bin in bins:
+        dst += bin
+    cnt = [len(bin) for bin in bins]
+    # Return index list and count list
+    return dst, cnt
+
+
 # Declare named tuple for dataset storage
 Data = namedtuple('DataSet', ['stimuli', 'responses', 'labels'])
 # Load image dataset as dictionary
 with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
     dat = dict(**dict_obj)
+    # ID of Region of Interest
+    ROI = dat["roi"]
+    # Names of ROI
+    ROI_NAMES = dat["roi_names"]
+    ROI_INDEXES = {}
+    for idx, key in zip(range(len(ROI_NAMES)), ROI_NAMES):
+        ROI_INDEXES[key] = idx
+    # Mapping of spikes
+    __roi_names__ = ["V1", "V2", "V3", "V3A", "V3B", "V4", "LatOcc"]
+    VOXEL_MAP, VOXEL_CNT = reorganize(
+        *__roi_names__,
+        src=ROI, lut=ROI_INDEXES
+    )
     # The training set
     train_data = Data(
         # N × 128 × 128 grayscale images (float32, [0 ~ 1])
         stimuli=dat["stimuli"],
         # N × 8428 Neural Spike Recordings (float32, [-1 ~ 1])
-        responses=dat["responses"],
+        responses=dat["responses"][:, VOXEL_MAP],
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS.filename).T
     )
@@ -49,11 +85,30 @@ with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
         # N × 128 × 128 grayscale images
         stimuli=dat["stimuli_test"],
         # N × 8428 Neural Spike Recordings
-        responses=dat["responses_test"],
+        responses=dat["responses_test"][:, VOXEL_MAP],
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS_VAL.filename).T
     )
-    # ID of Region of Interest
-    ROI = dat["roi"]
-    # Names of ROI
-    ROI_NAMES = dat["roi_names"]
+
+
+__indices__ = []
+__total__ = 0
+for cnt in VOXEL_CNT:
+    __indices__.append([__total__, __total__ + cnt])
+    __total__ += cnt
+
+
+def decompose(spike: torch.Tensor):
+    # BatchSize × 8428 Spikes
+    assert len(spike.shape) == 2, spike.shape
+    return [spike[:, l:r] for l, r in __indices__]
+
+def voxel_count(*names: str):
+    result = 0
+    for name in names:
+        result += VOXEL_CNT[__roi_names__.index(name)]
+    return result
+
+if __name__ == "__main__":
+    print(ROI_INDEXES)
+    print(VOXEL_CNT)

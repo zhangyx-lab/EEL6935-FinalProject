@@ -13,6 +13,7 @@ from lib.Module import Module
 from lib.Context import Context
 from util.optimizer import optimizer
 from .Node import Node
+from .BrainEmulator import BrainEmulatorBackward
 from .config import SCALE, FC_LAYERS
 
 
@@ -23,16 +24,8 @@ class Decoder(Module):
         t, s = sample
         # Compute fc layers' out_channels
         ch_t = int(scale ** log(t.shape[-1], 2))
-        # Compute middle layer channels
-        ch_m = max(s.shape[1], ch_t)
         # Initialize fully connected layers
-        fc = []
-        for i in range(fc_layers):
-            in_features = s.shape[1] if i == 0 else ch_m
-            out_features = ch_t if i == fc_layers - 1 else ch_m
-            fc.append(nn.LeakyReLU())
-            fc.append(nn.Linear(in_features, out_features))
-        self.fc = nn.Sequential(*fc)
+        self.fc = BrainEmulatorBackward(ch_t)
         s = self.fc(s)
         ctx.log("FC output shape", s.shape)
         # Transform view

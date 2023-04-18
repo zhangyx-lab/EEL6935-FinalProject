@@ -1,4 +1,10 @@
-#!python3
+# ---------------------------------------------------------
+# Yuxuan Zhang
+# Dept. of Electrical and Computer Engineering
+# University of Florida
+# ---------------------------------------------------------
+# TODO: Add description
+# ---------------------------------------------------------
 from torch import Tensor, from_numpy
 import torchvision.transforms.functional as f
 from random import random

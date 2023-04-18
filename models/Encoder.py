@@ -13,6 +13,7 @@ from lib.Context import Context
 from util.augment import affine
 from util.optimizer import optimizer
 from .Node import Node
+from .BrainEmulator import BrainEmulatorForward
 from .config import SCALE, FC_LAYERS
 
 
@@ -33,34 +34,28 @@ class Encoder(Module):
         pool = nn.MaxPool2d((2, 2))
         # Generate node list according to input sample and channels
         while h >= 2:
-            # Get dimensions out of the current sample
             # Create new node layer using the sample
             node = Node(c, scale * c)
             # Iterate the sample
             s = node(s)
             # Down-sample the image
             s: torch.Tensor = pool(s)
-            # Record the shape
+            # Get dimensions out of the current sample
             _, c, h, w = s.shape
+            # Record the shape
             ctx.log("Encoder node shape", s.shape)
             # Append layer to node list
-            layers.append(nn.ModuleList([pool, node]))
+            layers.append(nn.ModuleList([node, pool]))
         # Instantiate node list
         self.layers = nn.ModuleList(layers)
         # Flatten sample
         s = s.view((b, -1))
-        # Compute middle layer channels
-        ch_m = max(s.shape[1], t.shape[1])
         # Initialize fully connected layers
-        fc = []
-        for i in range(fc_layers):
-            in_features = s.shape[1] if i == 0 else ch_m
-            out_features = t.shape[1] if i == fc_layers - 1 else ch_m
-            fc.append(nn.LeakyReLU())
-            fc.append(nn.Linear(in_features, out_features))
-        self.fc = nn.Sequential(*fc)
-        # Activation function for -1~1 voxel spike
-        # self.activation = nn.Tanh()
+        self.fc = BrainEmulatorForward(in_features=s.shape[1])
+        # self.fc = HiddenLayers(s.shape[1], t.shape[1], delta=0.5, middle=1.2)
+        # Get final sample output
+        s = self.fc(s)
+        print("Encoder output shape", s.shape)
         # Initialize optimizer
         if train:
             self.optimizer = optimizer(self)
@@ -77,12 +72,9 @@ class Encoder(Module):
         b, h, w = x.shape
         x = x.view((b, -1, h, w))
         # Down sampling layers
-        for pool, node in self.layers:
+        for node, pool in self.layers:
             x = node(x, train=train)
             x = pool(x)
         # Fully connected layers
-        x = x.view((b, -1))
-        x = self.fc(x)
-        # Final activation function
-        # x = self.activation(x)
+        x = self.fc(x.view((b, -1)))
         return x
