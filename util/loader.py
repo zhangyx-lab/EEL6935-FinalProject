@@ -73,10 +73,11 @@ with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
     )
     # The training set
     train_data = Data(
-        # N × 128 × 128 grayscale images (float32, [0 ~ 1])
+        # N × 128 × 128 grayscale images (float32)
         stimuli=dat["stimuli"],
-        # N × 8428 Neural Spike Recordings (float32, [-1 ~ 1])
+        # N × 8428 Neural Spike Recordings (float32)
         responses=dat["responses"][:, VOXEL_MAP],
+        responses_raw=dat["responses"],
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS.filename).T
     )
@@ -86,6 +87,7 @@ with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
         stimuli=dat["stimuli_test"],
         # N × 8428 Neural Spike Recordings
         responses=dat["responses_test"][:, VOXEL_MAP],
+        responses_raw=dat["responses_test"],
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS_VAL.filename).T
     )

@@ -46,8 +46,6 @@ class Decoder(Module):
             ctx.log("Decoder node shape", s.shape)
             layers.append(nn.ModuleList([upconv, node]))
         self.layers = nn.ModuleList(layers)
-        # Activation function for 0~1 grayscale image
-        self.activation = nn.Sigmoid()
         # Initialize optimizer
         if train:
             self.optimizer = optimizer(self)
@@ -62,7 +60,6 @@ class Decoder(Module):
         for upconv, node in self.layers:
             x = upconv(x)
             x = node(x, train=train)
-        x = self.activation(x)
         b, _, h, w = x.shape
         x = x.view((b, h, w))
         return x
