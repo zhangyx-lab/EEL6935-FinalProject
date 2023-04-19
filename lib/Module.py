@@ -118,7 +118,7 @@ class Module(torch.nn.Module):
         # Save all intermediate data pushed into context during training.
         for key, mem in ctx.collect_all():
             path = ctx.path / key
-            res = np.stack(mem, axis=0)
+            res = np.concatenate(mem, axis=0)
             np.save(path, res)
             ctx.log(f"Saved {relative(path)}: {res.shape} ({res.dtype})")
 

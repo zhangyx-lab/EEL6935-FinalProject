@@ -60,34 +60,34 @@ class Context:
         if self.parent is not None:
             self.parent.interrupt(code)
 
-    __memory = {}
+    __memory__ = {}
 
     def push(self, key, *values):
         """
         Push list of values into temp memory of current context.
         """
-        if key in self.__memory:
-            assert isinstance(self.__memory[key], list)
+        if key in self.__memory__:
+            assert isinstance(self.__memory__[key], list)
             for el in values:
-                self.__memory[key].append(el)
+                self.__memory__[key].append(el)
         else:
-            self.__memory[key] = [el for el in values]
+            self.__memory__[key] = [el for el in values]
 
     def collect(self, key, clear=True) -> list:
         """
         Collect all values previously pushed into memory.
         Removes collected set of value by default.
         """
-        assert key in self.__memory, key
-        mem = self.__memory[key]
+        assert key in self.__memory__, key
+        mem = self.__memory__[key]
         if clear:
-            del self.__memory[key]
+            del self.__memory__[key]
         return mem
 
     def collect_all(self, clear=True):
         def iterate_key(key: str):
             return key, self.collect(key, clear=clear)
-        return map(iterate_key, list(self.__memory.keys()))
+        return map(iterate_key, list(self.__memory__.keys()))
 
 class Run(Context):
     state = None

@@ -7,11 +7,13 @@
 # ---------------------------------------------------------
 from .Encoder import Encoder
 from .Decoder import Decoder
-from .AutoEncoder import VisualAE, SpikeAE
+from .AutoEncoder import Model as AutoEncoder, VisualAE, SpikeAE
 from lib.Module import Module
 
 
 MODELS: dict[Module] = {
+    # ===== Bare Model ======
+    "AutoEncoder": AutoEncoder,
     # ===== Combination =====
     "VisualAE": VisualAE,
     "SpikeAE": SpikeAE,
