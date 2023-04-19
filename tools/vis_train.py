@@ -1,6 +1,8 @@
 from .__internal__ import RUN_ID, WORKDIR, args
 import numpy as np
 import matplotlib.pyplot as plt
+from glob import glob
+
 
 def log2arr(lines: list[str]):
     result = []

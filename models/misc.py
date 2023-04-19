@@ -20,7 +20,7 @@ class PowerActivation(nn.Module):
 
 
 class HiddenLayers(nn.Module):
-    def __init__(self, src, dst, delta=0.8, middle=1.2, bias: bool = True):
+    def __init__(self, src, dst, delta=0.4, middle=1.2, bias: bool = True):
         super().__init__()
         n = src
         middle = int((src if src > dst else dst) * middle)

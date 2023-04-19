@@ -54,7 +54,7 @@ def reorganize(*names, src: np.ndarray, lut: dict[str, int]):
 
 
 # Declare named tuple for dataset storage
-Data = namedtuple('DataSet', ['stimuli', 'responses', 'labels'])
+Data = namedtuple('DataSet', ['stimuli', 'responses', 'responses_raw', 'labels'])
 # Load image dataset as dictionary
 with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
     dat = dict(**dict_obj)
