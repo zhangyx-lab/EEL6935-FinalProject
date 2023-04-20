@@ -15,7 +15,15 @@ from util.optimizer import optimizer
 from .Node import Node
 from .BrainEmulator import BrainEmulatorForward
 from .config import SCALE, FC_LAYERS
-
+# Used for saving preview
+import cv2
+from cvtb.types import scaleToFit
+import numpy as np
+from dataset import DataSet
+from util.visualize import spike as visualize
+from util.loader import test_data, train_data
+train_set = DataSet(train_data)
+test_set = DataSet(test_data)
 
 class Encoder(Module):
     def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE, train=True):
@@ -55,10 +63,22 @@ class Encoder(Module):
         # self.fc = HiddenLayers(s.shape[1], t.shape[1], delta=0.5, middle=1.2)
         # Get final sample output
         s = self.fc(s)
+        self.activation = nn.Sigmoid()
         print("Encoder output shape", s.shape)
         # Initialize optimizer
         if train:
             self.optimizer = optimizer(self)
+
+    def iterate_epoch(self, epoch, loader, ctx: Context, train=None):
+        with torch.no_grad():
+            for ds, name in ((test_set, 'test'), (train_set, 'train')):
+                visual, spike = ds.sample(5)
+                pred = self(visual.to(self.device)).detach().cpu().numpy()
+                cv2.imwrite(str(ctx.path / f"preview-{name}.png"), visualize(
+                    spike, pred, scaleToFit(pred)
+                ))
+        result = super().iterate_epoch(epoch, loader, ctx, train)
+        return result
 
     def iterate_batch(self, ctx: Context, *data_point, train=None):
         if train and "AFFINE" in train:
@@ -77,4 +97,4 @@ class Encoder(Module):
             x = pool(x)
         # Fully connected layers
         x = self.fc(x.view((b, -1)))
-        return x
+        return self.activation(x)

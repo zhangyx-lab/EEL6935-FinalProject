@@ -15,7 +15,15 @@ from util.optimizer import optimizer
 from .Node import Node
 from .BrainEmulator import BrainEmulatorBackward
 from .config import SCALE, FC_LAYERS
-
+# Used for saving preview
+from util.visualize import visual as visualize
+import cv2
+from cvtb.types import scaleToFit
+import numpy as np
+from dataset import DataSet
+from util.loader import test_data, train_data
+train_set = DataSet(train_data)
+test_set = DataSet(test_data)
 
 class Decoder(Module):
     def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE, train=True):
@@ -25,6 +33,7 @@ class Decoder(Module):
         # Compute fc layers' out_channels
         ch_t = int(scale ** log(t.shape[-1], 2))
         # Initialize fully connected layers
+        # self.fc = HiddenLayers(s.shape[1], ch_t)
         self.fc = BrainEmulatorBackward(ch_t)
         s = self.fc(s)
         ctx.log("FC output shape", s.shape)
@@ -46,9 +55,21 @@ class Decoder(Module):
             ctx.log("Decoder node shape", s.shape)
             layers.append(nn.ModuleList([upconv, node]))
         self.layers = nn.ModuleList(layers)
+        self.activation = nn.Sigmoid()
         # Initialize optimizer
         if train:
             self.optimizer = optimizer(self)
+
+    def iterate_epoch(self, epoch, loader, ctx: Context, train=None):
+        result = super().iterate_epoch(epoch, loader, ctx, train)
+        with torch.no_grad():
+            for ds, name in ((test_set, 'test'), (train_set, 'train')):
+                visual, spike = ds.sample(5)
+                pred = self(spike.to(self.device)).detach().cpu().numpy()
+                cv2.imwrite(str(ctx.path / f"preview-{name}.png"), visualize(
+                    visual, pred, scaleToFit(pred)
+                ))
+        return result
 
     def iterate_batch(self, ctx: Context, visual, spike, *args, train=False):
         return super().iterate_batch(ctx, spike, visual, *args, train=train)
@@ -62,4 +83,4 @@ class Decoder(Module):
             x = node(x, train=train)
         b, _, h, w = x.shape
         x = x.view((b, h, w))
-        return x
+        return self.activation(x)

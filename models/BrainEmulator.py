@@ -11,12 +11,12 @@ from torch import cat
 from util.loader import decompose, voxel_count as cnt
 from .misc import PowerActivation, HiddenLayers
 """
-Hirachy of actual human brain:
+Hirachy of emulated human brain:
 
-                                 | V3  |
-Visual Stimuli <-> V1 <-> V2 <-> | V3A | <-> V4
-      |                          | V3B |
-    LatOcc
+                          ┌─ V-3 ─┐
+ConvLayers ─── V1 ─── V2 ─┼─ V3A ─┼─ V4
+    |                 |   └─ V3B ─┘  |
+    └─ LatOcc         └──────────────┘
 
 """
 
@@ -55,7 +55,7 @@ class BrainEmulatorBackward(nn.Module):
         self.V3 = HiddenLayers(cnt("V3", "V4"), cnt("V3"), bias=bias)
         self.V3A = HiddenLayers(cnt("V3A", "V4"), cnt("V3A"), bias=bias)
         self.V3B = HiddenLayers(cnt("V3B", "V4"), cnt("V3B"), bias=bias)
-        self.V2 = HiddenLayers(cnt("V2", "V3", "V3A", "V3B"), cnt("V2"), bias=bias)
+        self.V2 = HiddenLayers(cnt("V2", "V3", "V3A", "V3B", "V4"), cnt("V2"), bias=bias)
         self.V1 = HiddenLayers(cnt("V1", "V2"), cnt("V1"), bias=bias)
         self.comb = HiddenLayers(cnt("V1", "LatOcc"), out_features, bias=bias)
 
@@ -66,6 +66,6 @@ class BrainEmulatorBackward(nn.Module):
             self.V3A(cat([V3A, V4], dim=1)),
             self.V3B(cat([V3B, V4], dim=1))
         ], dim=1)
-        v2 = self.V2(cat([V2, v3], dim=1))
+        v2 = self.V2(cat([V2, v3, V4], dim=1))
         v1 = self.V1(cat([V1, v2], dim=1))
         return self.comb(cat([v1, LatOcc], dim=1))

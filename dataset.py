@@ -7,7 +7,7 @@
 # ---------------------------------------------------------
 import sys
 from typing import Tuple
-from random import randint
+from random import randint, shuffle
 # Custom imports
 import numpy as np
 import torch
@@ -22,14 +22,15 @@ class DataSet(TorchDataset):
 
     augment = None
 
-    def sample(self):
+    def sample(self, batchSize=1):
         # Randomly return an item as the sample
-        idx = randint(0, self.__len__() - 1)
-        data, truth, idx = self.__getitem__(idx)
-        h, w = data.shape
-        data = data.view((-1, h, w))
-        w, = truth.shape
-        truth = truth.view((-1, w))
+        idx = list(range(self.__len__()))
+        shuffle(idx)
+        idx = idx[:batchSize]
+        result = [self.__getitem__(i) for i in idx]
+        data, truth, idx = zip(*result)
+        data = torch.stack(data, dim=0)
+        truth = torch.stack(truth, dim=0)
         return data, truth
 
 

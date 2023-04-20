@@ -12,6 +12,8 @@ from collections import namedtuple
 import numpy as np
 import torch
 from util.env import DATA_PATH
+from cvtb.types import scaleToFit, U8, to_float
+import cv2
 
 RES = namedtuple('Resource', ['filename', 'hash'])
 KAY_LABELS = RES("kay_labels.npy", "r638s")
@@ -21,6 +23,14 @@ KAY_IMAGES = RES("kay_images.npz", "ymnjv")
 
 def get_osf_url(hash): return f"https://osf.io/{hash}/download"
 
+
+def transform(img):
+    dtype = img.dtype
+    for layer in img:
+        # mask = (1 - np.abs(layer * 2 - 1)) ** 2
+        blurred = cv2.GaussianBlur(U8(layer), [31, 31], 0)
+        blurred = to_float(blurred, dtype)
+        layer[:] = blurred
 
 for name, hash in [KAY_LABELS, KAY_LABELS_VAL, KAY_IMAGES]:
     path = str(DATA_PATH / name)
@@ -32,10 +42,12 @@ for name, hash in [KAY_LABELS, KAY_LABELS_VAL, KAY_IMAGES]:
             f.write(r.content)
         print(f"Download {name} completed!")
 
-# Function to reorder voxels
 
 
 def reorganize(*names, src: np.ndarray, lut: dict[str, int]):
+    """
+    reorder voxels according to their regions
+    """
     ids = [lut[name] for name in names]
     bins = [[] for _ in range(len(names))]
     # Throw indexes into bins
@@ -74,20 +86,21 @@ with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
     # The training set
     train_data = Data(
         # N × 128 × 128 grayscale images (float32)
-        stimuli=dat["stimuli"],
+        stimuli=scaleToFit(dat["stimuli"]),
         # N × 8428 Neural Spike Recordings (float32)
-        responses=dat["responses"][:, VOXEL_MAP],
-        responses_raw=dat["responses"],
+        responses=scaleToFit(dat["responses"][:, VOXEL_MAP]),
+        responses_raw=scaleToFit(dat["responses"]),
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS.filename).T
     )
+    transform(train_data.stimuli)
     # The test set
     test_data = Data(
         # N × 128 × 128 grayscale images
-        stimuli=dat["stimuli_test"],
+        stimuli=scaleToFit(dat["stimuli_test"]),
         # N × 8428 Neural Spike Recordings
-        responses=dat["responses_test"][:, VOXEL_MAP],
-        responses_raw=dat["responses_test"],
+        responses=scaleToFit(dat["responses_test"][:, VOXEL_MAP]),
+        responses_raw=scaleToFit(dat["responses_test"]),
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS_VAL.filename).T
     )
