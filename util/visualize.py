@@ -5,6 +5,7 @@
 # ---------------------------------------------------------
 # TODO: Add description
 # ---------------------------------------------------------
+import cv2
 import torch
 import numpy as np
 from math import sqrt, ceil
@@ -21,7 +22,7 @@ def visual(*vis):
     return U8(img)
 
 
-def spike(*spi):
+def spike(*spi, scale=8):
     spi = list(spi)
     for i in range(len(spi)):
         if isinstance(spi[i], torch.Tensor):
@@ -37,4 +38,7 @@ def spike(*spi):
         img.append(bgr)
     img = [np.concatenate(list(i), axis=1) for i in img]
     img = np.concatenate(img, axis=0)
-    return U8(trimToFit(img))
+    img = U8(trimToFit(img))
+    h, w, d = img.shape
+    img = cv2.resize(img, (w * scale, h * scale), 0, 0, interpolation=cv2.INTER_NEAREST)
+    return img

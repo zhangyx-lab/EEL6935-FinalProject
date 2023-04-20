@@ -82,7 +82,8 @@ if __name__ == "__main__":
     print(parser.parse_args(['-m', 'model-name']))
 else:
     ARGS = parser.parse_args()
-    CMD = ARGS.command[0] if len(ARGS.command) else 'run-all'
+    command = ARGS.command
+    CMD = command[0] if len(command) else 'run-all'
     RUN_TRAIN = CMD in ['run-all', 'train']
     RUN_TEST = CMD in ['run-all', 'test']
     model: str = ARGS.model

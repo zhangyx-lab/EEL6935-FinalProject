@@ -19,6 +19,7 @@ from lib.Module import Module
 from util.loader import train_data, test_data
 from util.device import DEVICE
 import util.args as args
+import tools.vis_pred
 # Model imports
 from models import MODELS
 # Initialize datasets
@@ -66,5 +67,9 @@ with Run() as run:
         with run.context("test") as ctx:
             ctx.log(banner="Running Prediction on TEST SET")
             model.run(ctx, test_set)
+    # Visualize
+    if 'visualize' in args.command:
+        with torch.no_grad():
+            tools.vis_pred.ui(run, model, train_set, test_set)
     # Congratulations!
     run.log(f"RUN<{run.id}> completed!", banner="Success")
