@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from glob import glob
 
+fig_size = (9, 5) if len(args) < 1 else eval(args[0])
 
 def log2arr(lines: list[str]):
     result = []

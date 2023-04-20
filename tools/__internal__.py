@@ -10,4 +10,6 @@ args = parser.parse_args()
 RUN_ID = args.runID[0]
 WORKDIR = RUN_PATH / RUN_ID
 
+args = args.runID[1:]
+
 assert exists(WORKDIR), f"{relative(WORKDIR)} not exist"

@@ -8,6 +8,12 @@
 import torch
 import torch.nn as nn
 
+from util.loader import test_data, train_data
+from dataset import DataSet
+train_set = DataSet(train_data)
+test_set = DataSet(test_data)
+
+
 class PowerActivation(nn.Module):
     def __init__(self, power: float = 0.5):
         super().__init__()

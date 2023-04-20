@@ -16,6 +16,9 @@ from lib.Module import Module
 from .Decoder import Decoder
 from .Encoder import Encoder
 from .config import SCALE, FC_LAYERS
+# ---------------------------------------------------------
+import cv2
+from .misc import test_set, train_set
 
 
 class Model(Module):
@@ -54,6 +57,17 @@ class Model(Module):
 
         self.encoder.load(ctx, encoder_load_path)
         self.decoder.load(ctx, decoder_load_path)
+
+    def iterate_epoch(self, epoch, loader, ctx: Context, train=None):
+        result = super().iterate_epoch(epoch, loader, ctx, train)
+        with torch.no_grad():
+            for ds, set in ((test_set, 'test'), (train_set, 'train')):
+                sample = ds.sample(5)
+                encoder_preview = self.encoder.preview(sample)
+                decoder_preview = self.decoder.preview(sample)
+                cv2.imwrite(str(ctx.path / f"encoder-{set}.png"), encoder_preview)
+                cv2.imwrite(str(ctx.path / f"decoder-{set}.png"), decoder_preview)
+        return result
 
     def iterate_batch(self, ctx: Context, *data_point, train=None):
         if train:
@@ -112,6 +126,9 @@ class VisualAE(Model):
 
 
 class SpikeAE(Model):
+    def lossFunction(self, pred, truth):
+        return super().lossFunction(pred, truth)
+
     def iterate_batch(self, ctx: Context, *data_point, train=None):
         if train:
             visual, spike = list(data_point)[:2]

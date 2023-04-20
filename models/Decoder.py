@@ -13,17 +13,13 @@ from lib.Module import Module
 from lib.Context import Context
 from util.optimizer import optimizer
 from .Node import Node
-from .BrainEmulator import BrainEmulatorBackward
+from .BrainEmulator import BrainEmulatorBackward, HiddenLayers
 from .config import SCALE, FC_LAYERS
 # Used for saving preview
-from util.visualize import visual as visualize
 import cv2
-from cvtb.types import scaleToFit
-import numpy as np
-from dataset import DataSet
-from util.loader import test_data, train_data
-train_set = DataSet(train_data)
-test_set = DataSet(test_data)
+from util.visualize import visual as visualize
+from .misc import test_set, train_set
+
 
 class Decoder(Module):
     def __init__(self, ctx: Context, device, sample: Sample_t, fc_layers=FC_LAYERS, scale=SCALE, train=True):
@@ -60,15 +56,18 @@ class Decoder(Module):
         if train:
             self.optimizer = optimizer(self)
 
+    def preview(self, sample):
+        visual, spike = sample
+        pred = self(spike.to(self.device)).detach().cpu().numpy()
+        return visualize(visual, pred)
+
     def iterate_epoch(self, epoch, loader, ctx: Context, train=None):
         result = super().iterate_epoch(epoch, loader, ctx, train)
         with torch.no_grad():
             for ds, name in ((test_set, 'test'), (train_set, 'train')):
-                visual, spike = ds.sample(5)
-                pred = self(spike.to(self.device)).detach().cpu().numpy()
-                cv2.imwrite(str(ctx.path / f"preview-{name}.png"), visualize(
-                    visual, pred, scaleToFit(pred)
-                ))
+                preview = self.preview(ds.sample(5))
+                savepath = str(ctx.path / f"preview-{name}.png")
+                cv2.imwrite(savepath, preview)
         return result
 
     def iterate_batch(self, ctx: Context, visual, spike, *args, train=False):

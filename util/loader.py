@@ -93,7 +93,8 @@ with np.load(DATA_PATH / KAY_IMAGES.filename) as dict_obj:
         # Classification labels predicted by 3rd party models
         labels=np.load(DATA_PATH / KAY_LABELS.filename).T
     )
-    transform(train_data.stimuli)
+    # [Optional] Transform the training set
+    # transform(train_data.stimuli)
     # The test set
     test_data = Data(
         # N × 128 × 128 grayscale images
